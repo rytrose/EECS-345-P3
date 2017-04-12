@@ -39,9 +39,21 @@
 ; ------------------------------------------------------------------------------
 (define interpret
   (lambda (fd)
-    (call/cc
-     (lambda (return)
-       (interpreter (parser fd) '((() ())) return continueError breakError throwError)))))
+    (selectReturn
+     (call/cc
+      (lambda (finalReturn)
+        (let ((state
+               (extractState
+                (call/cc
+                 (lambda (return)
+                   (interpreter (parser fd) '((() ())) return continueError breakError throwError))))))
+          ((getVal 'main state) '() state)))))))
+
+(define selectReturn
+  (lambda (returnVals)
+    (cond
+      ((null? (extractValue returnVals)) (extractState returnVals))
+      (else (extractValue returnVals)))))
 
 (define continueError
   (lambda (s)
@@ -57,32 +69,7 @@
 
 (define buildError
   (lambda (s e)
-    (string-append s (~a e) "\n") ))
-
-
-; ------------------------------------------------------------------------------
-; initializer
-; inputs:
-;  pt - parse tree
-;  s - state
-; outputs:
-;  The main function and the state with global vars and function definitions
-; ------------------------------------------------------------------------------
-; ------------------------------------------------------------------------------
-; ABSTRACTIONS
-; ------------------------------------------------------------------------------
-(define getOp (lambda (pt) (caar pt)))
-(define getVarName (lambda (pt) (cadar pt)))
-(define getVarVal (lambda (pt) (caddar pt)))
-
-
-
-(define initializer
-  (lambda (pt s)
-    (cond
-      ((null? pt) s)
-      ((eqv? (getOp pt) 'var) (decVal (getVarName pt) )))))
-      
+    (string-append s (~a e) "\n") ))      
 
 ; ------------------------------------------------------------------------------
 ; interpreter
@@ -109,11 +96,11 @@
 (define interpreter
   (lambda (pt s return cont_c cont_b cont_t)
     (cond
-      ((null? pt) s)
+      ((null? pt) (valState '() s))
       ((null? (getFirstOperation pt)) (interpreter (getRemainingStatements pt) s return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'var) (interpreter (getRemainingStatements pt) (decVal (getFirstOperand pt) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
       ((eqv? (getFirstOperation pt) '=) (interpreter (getRemainingStatements pt) (m_assign (getOperands pt) s cont_t) return cont_c cont_b cont_t))  ; if "="
-      ((eqv? (getFirstOperation pt) 'return) (if (boolean? (car (m_eval (getFirstOperand pt) s cont_t))) (if (car (m_eval (getFirstOperand pt) s cont_t)) (return 'true) (return 'false)) (return (car (m_eval (getFirstOperand pt) s cont_t))))) ; if "return"
+      ((eqv? (getFirstOperation pt) 'return) (if (boolean? (car (m_eval (getFirstOperand pt) s cont_t))) (if (car (m_eval (getFirstOperand pt) s cont_t)) (return (valState 'true s)) (return (valState 'false s))) (return (m_eval (getFirstOperand pt) s cont_t)))) ; if "return"
       ((eqv? (getFirstOperation pt) 'if) (interpreter (getRemainingStatements pt) (m_if (getFirstOperand pt) (getSecondOperand pt) (if (null? (getThirdPlusOperands pt)) '() (getThirdOperand pt)) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))  ; if "if"
       ((eqv? (getFirstOperation pt) 'while) (interpreter (getRemainingStatements pt) (call/cc (lambda (breakFunc) (m_while (getFirstOperand pt) (getSecondOperand pt) s return breakFunc cont_t))) return cont_c cont_b cont_t))  ; if "while"
       ((eqv? (getFirstOperation pt) 'begin) (interpreter (getRemainingStatements pt) (m_block (getOperands pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t)) ; if "begin"
@@ -121,7 +108,7 @@
       ((eqv? (getFirstOperation pt) 'break) (cont_b s))
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
-      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -198,8 +185,8 @@
       ((null? condition) (cont_t (buildError "CONDITION ERROR: Condition cannot be null." "")))
       ((null? ifblock) (cont_t (buildError "CONDITION ERROR: Block cannot be null." "")))
       ((null? state) (cont_t (buildError "CONDITION ERROR: State cannot be null." "")))
-      ((car (m_eval condition state cont_t)) (interpreter (cons ifblock '()) (cdr (m_eval condition state cont_t)) return cont_c cont_b cont_t))
-      (else (if (null? elseblock) (cdr (m_eval condition state cont_t)) (interpreter (cons elseblock '()) (cdr (m_eval condition state cont_t)) return cont_c cont_b cont_t))))))
+      ((car (m_eval condition state cont_t)) (extractState (interpreter (cons ifblock '()) (cdr (m_eval condition state cont_t)) return cont_c cont_b cont_t)))
+      (else (if (null? elseblock) (cdr (m_eval condition state cont_t)) (extractState (interpreter (cons elseblock '()) (cdr (m_eval condition state cont_t)) return cont_c cont_b cont_t)))))))
       
 ; ------------------------------------------------------------------------------
 ; decVal - declares and initializes a variable
@@ -318,7 +305,7 @@
       ((null? condition) (cont_t (buildError "LOOP ERROR: Condition cannot be null." "")))
       ((null? block) (cont_t (buildError "LOOP ERROR: Block cannot be null." "")))
       ((null? state) (cont_t (buildError "LOOP ERROR: State cannot be null." "")))
-      ((car (m_eval condition state cont_t)) (m_while condition block (call/cc (lambda (cont_c) (interpreter (cons block '()) (cdr (m_eval condition state cont_t)) return (lambda (s) (cont_c (popLayer s))) (lambda (s) (cont_b (popLayer s))) cont_t))) return cont_b cont_t) )
+      ((car (m_eval condition state cont_t)) (m_while condition block (call/cc (lambda (cont_c) (extractState (interpreter (cons block '()) (cdr (m_eval condition state cont_t)) return (lambda (s) (cont_c (popLayer s))) (lambda (s) (cont_b (popLayer s))) cont_t)))) return cont_b cont_t) )
       (else (cont_b (cdr (m_eval condition state cont_t)))))))
 
 ; ------------------------------------------------------------------------------
@@ -331,7 +318,7 @@
 ; ------------------------------------------------------------------------------
 (define m_block
   (lambda (block state return cont_c cont_b cont_t)
-    (popLayer (interpreter block (addLayer state) return cont_c cont_b (lambda (s e) (cont_t (popLayer s) e)))) ))
+    (popLayer (extractState (interpreter block (addLayer state) return cont_c cont_b (lambda (s e) (cont_t (popLayer s) e))))) ))
 
 ; ------------------------------------------------------------------------------
 ; m_block_args - handles a block where arguments are passed in
@@ -343,7 +330,7 @@
 ; ------------------------------------------------------------------------------
 (define m_block_args
   (lambda (block state return cont_c cont_b cont_t)
-    (popLayer (interpreter block state return cont_c cont_b (lambda (s e) (cont_t (popLayer s) e)))) ))
+    (popLayer (extractState (interpreter block state return cont_c cont_b (lambda (s e) (cont_t (popLayer s) e))))) ))
 
 
 ; ------------------------------------------------------------------------------
@@ -427,8 +414,11 @@
 ;   The final state with this function added on
 ; ------------------------------------------------------------------------------
 (define defineFunc
-  (lambda (name args block s)
-    (decVal name (lambda (argList state) (addArgs args argList state)     ) s)))
+  (lambda (name args block s cont_t)
+    (decVal name
+            (lambda (argList state)
+                   (m_func block
+                           (addArgs args argList state) cont_t)) s)))
 
 ; ------------------------------------------------------------------------------
 ; addArgs - Adds the arguments to a function onto a new state layer (DYNAMIC SCOPING + CALL BY VALUE)
@@ -443,6 +433,39 @@
 (define addArgs
   (lambda (argNames argValues state)
     (cons (cons argNames (cons argValues '())) state)))
+
+; ------------------------------------------------------------------------------
+; m_func - Runs a function
+; inputs:
+;   block - The internal block of the function
+;   s - The state at the time of the function call, with arguments applied
+;   cont_t - The throw continuation from the point of the function call
+;
+; outputs:
+;   The final state after this function has run
+; ------------------------------------------------------------------------------
+(define m_func
+  (lambda (block s cont_t)
+    (clearFunctionState
+     (call/cc
+      (lambda (return)
+        (interpreter block s return continueError breakError cont_t))))))
+
+(define clearFunctionState
+  (lambda (returnVals)
+    (cons (extractValue returnVals) (popLayer (extractState returnVals)))))
+
+(define valState
+  (lambda (value state)
+    (cons value state)))
+
+(define extractValue
+  (lambda (returnVals)
+    (car returnVals)))
+
+(define extractState
+  (lambda (returnVals)
+    (cdr returnVals)))
 
 ; ------------------------------------------------------------------------------
 ; atom?
