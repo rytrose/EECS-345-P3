@@ -109,6 +109,7 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s) s)))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -433,6 +434,21 @@
 (define addArgs
   (lambda (argNames argValues state)
     (cons (cons argNames (cons argValues '())) state)))
+
+; ------------------------------------------------------------------------------
+; resolveArgs - Resolves the argument list to a list of values
+; inputs:
+;   argList - The list of arguments to resolve
+;   state - The state prior to adding the arguments
+;
+; outputs:
+;   The updated state with arguments on a new layer
+; ------------------------------------------------------------------------------
+(define resolveArgs
+  (lambda (argList state)
+    (cond
+      ((list? (car argList)) (cons (m_eval (car argList) state) (resolveArgs (cdr argList) state)))
+      (else (cons (getVal (car argList) state) (resolveArgs (cdr argList) state))))))
 
 ; ------------------------------------------------------------------------------
 ; m_func - Runs a function
