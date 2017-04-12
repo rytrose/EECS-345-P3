@@ -423,6 +423,7 @@
 ;
 ; outputs:
 ;   The final state with this function added on
+; ------------------------------------------------------------------------------
 (define defineFunc
   (lambda (pt s)
     s))
