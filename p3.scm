@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------------------------
 ; test
 ; ------------------------------------------------------------------------------
-(define testPrograms '(("Test1.txt" 20)("Test2.txt" 164)("Test3.txt" 32)("Test4.txt" 2)("Test6.txt" 25)("Test7.txt" 21)("Test8.txt" 6)("Test9.txt" -1)("Test10.txt" 789)("Test14.txt" 12)("Test15.txt" 125)("Test16.txt" 110)("Test17.txt" 2000400)("Test18.txt" 101)))
+(define testPrograms '(("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" 'true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
 
 (define testInterpreter
   (lambda (testPrograms passed failed)
@@ -100,7 +100,7 @@
       ((null? (getFirstOperation pt)) (interpreter (getRemainingStatements pt) s return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'var) (interpreter (getRemainingStatements pt) (decVal (getFirstOperand pt) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
       ((eqv? (getFirstOperation pt) '=) (interpreter (getRemainingStatements pt) (m_assign (getOperands pt) s cont_t) return cont_c cont_b cont_t))  ; if "="
-      ((eqv? (getFirstOperation pt) 'return) (if (boolean? (car (m_eval (getFirstOperand pt) s cont_t))) (if (car (m_eval (getFirstOperand pt) s cont_t)) (return (valState 'true s)) (return (valState 'false s))) (return (m_eval (getFirstOperand pt) s cont_t)))) ; if "return"
+      ((eqv? (getFirstOperation pt) 'return) (let ((finalState (m_eval (getFirstOperand pt) s cont_t))) ((if (boolean? (extractValue finalState)) (if (extractValue finalState) (return (valState 'true s)) (return (valState 'false s))) (return finalState))))) ; if "return"
       ((eqv? (getFirstOperation pt) 'if) (interpreter (getRemainingStatements pt) (m_if (getFirstOperand pt) (getSecondOperand pt) (if (null? (getThirdPlusOperands pt)) '() (getThirdOperand pt)) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))  ; if "if"
       ((eqv? (getFirstOperation pt) 'while) (interpreter (getRemainingStatements pt) (call/cc (lambda (breakFunc) (m_while (getFirstOperand pt) (getSecondOperand pt) s return breakFunc cont_t))) return cont_c cont_b cont_t))  ; if "while"
       ((eqv? (getFirstOperation pt) 'begin) (interpreter (getRemainingStatements pt) (m_block (getOperands pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t)) ; if "begin"
@@ -419,6 +419,7 @@
   (lambda (name args block s cont_t)
     (decVal name
             (lambda (argList state)
+;              (display "running ")(display name)(newline)
                    (m_func block
                            (addArgs args argList state) cont_t)) s)))
 
