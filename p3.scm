@@ -151,6 +151,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
+      ((eqv? (getStOperator st) 'funcall) '())
       (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
@@ -445,10 +446,11 @@
 ;   The updated state with arguments on a new layer
 ; ------------------------------------------------------------------------------
 (define resolveArgs
-  (lambda (argList state)
+  (lambda (argList state cont_t)
     (cond
-      ((list? (car argList)) (cons (m_eval (car argList) state) (resolveArgs (cdr argList) state)))
-      (else (cons (getVal (car argList) state) (resolveArgs (cdr argList) state))))))
+      ((null? argList) '())
+      ((list? (car argList)) (cons (extractValue (m_eval (car argList) state cont_t)) (resolveArgs (cdr argList) state cont_t)))
+      (else (cons (getVal (car argList) state) (resolveArgs (cdr argList) state cont_t))))))
 
 ; ------------------------------------------------------------------------------
 ; m_func - Runs a function
