@@ -151,7 +151,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) '())
+      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s))
       (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
