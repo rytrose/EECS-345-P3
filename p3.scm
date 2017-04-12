@@ -58,12 +58,38 @@
 (define buildError
   (lambda (s e)
     (string-append s (~a e) "\n") ))
-     
+
+
+; ------------------------------------------------------------------------------
+; initializer
+; inputs:
+;  pt - parse tree
+;  s - state
+; outputs:
+;  The main function and the state with global vars and function definitions
+; ------------------------------------------------------------------------------
+; ------------------------------------------------------------------------------
+; ABSTRACTIONS
+; ------------------------------------------------------------------------------
+(define getOp (lambda (pt) (caar pt)))
+(define getVarName (lambda (pt) (cadar pt)))
+(define getVarVal (lambda (pt) (caddar pt)))
+
+
+
+(define initializer
+  (lambda (pt s)
+    (cond
+      ((null? pt) s)
+      ((eqv? (getOp pt) 'var) (decVal (getVarName pt) )))))
+      
+
 ; ------------------------------------------------------------------------------
 ; interpreter
 ; inputs:
 ;  pt - parse tree
 ;  s - state
+;  [continuations]
 ; outputs:
 ;  The return value of the code and a state
 ; ------------------------------------------------------------------------------
@@ -79,8 +105,7 @@
 (define getThirdOperand (lambda (pt) (car (getThirdPlusOperands pt))))
 (define getSecondOperand (lambda (pt) (caddar pt)))
 
-; Continuations: Break, Continue, Return (done), Throw
-
+; Continuations: Break, Continue, Return, Throw
 (define interpreter
   (lambda (pt s return cont_c cont_b cont_t)
     (cond
