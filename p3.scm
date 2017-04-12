@@ -420,8 +420,26 @@
     (decVal name
             (lambda (argList state)
 ;              (display "running ")(display name)(newline)
-                   (m_func block
-                           (addArgs args argList state) cont_t)) s)))
+                   (let ((newState (m_func block
+                           (addArgs args argList (reduceState state (- (listLength state) (listLength s)))) cont_t))) (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState)))))) s)))
+
+(define reduceState
+  (lambda (state removeLayers)
+    (cond
+      ((zero? removeLayers) state)
+      (else (reduceState (cdr state) (- removeLayers 1))))))
+
+(define listLength
+  (lambda (list)
+    (cond
+      ((null? list) 0)
+      (else (+ 1 (listLength (cdr list)))))))
+
+(define restoreState
+  (lambda (original new addLayers)
+    (cond
+      ((zero? addLayers) new)
+      (else (cons (car original) (restoreState (cdr original) new (- addLayers 1)))))))
 
 ; ------------------------------------------------------------------------------
 ; addArgs - Adds the arguments to a function onto a new state layer (DYNAMIC SCOPING + CALL BY VALUE)
