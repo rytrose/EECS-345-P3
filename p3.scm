@@ -1,8 +1,5 @@
-gotch; Programming Project, Part 3
+; Programming Project, Part 3
 ; Ryan Rose, rtr29 | Ben Moore, bcm45 | Aaron Magid, ahm64
-
-; Load the parser and lexical analyzer
-(load "simpleParser.scm")
 
 ; Load the function parser
 (load "functionParser.scm")
@@ -99,6 +96,7 @@ gotch; Programming Project, Part 3
       ((eqv? (getFirstOperation pt) 'break) (cont_b s))
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
+      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getOperands pt) s) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -391,6 +389,18 @@ gotch; Programming Project, Part 3
     (cond
       ((null? finally) s)
       (else (m_block (cadr finally) s return cont_c cont_b cont_t)) )))
+
+; ------------------------------------------------------------------------------
+; defineFunc - Defines a function and adds it to the state
+; inputs:
+;   pt - All of the relevant data for this function
+;   s - The state at the time of the definition
+;
+; outputs:
+;   The final state with this function added on
+(define defineFunc
+  (lambda (pt s)
+    s))
 
 
 ; ------------------------------------------------------------------------------
