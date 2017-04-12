@@ -121,7 +121,7 @@
       ((eqv? (getFirstOperation pt) 'break) (cont_b s))
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
-      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getOperands pt) s) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -418,16 +418,31 @@
 ; ------------------------------------------------------------------------------
 ; defineFunc - Defines a function and adds it to the state
 ; inputs:
-;   pt - All of the relevant data for this function
+;   name - The name of the function
+;   args - A list of arguments for the function
+;   block - The code in the body of the function
 ;   s - The state at the time of the definition
 ;
 ; outputs:
 ;   The final state with this function added on
 ; ------------------------------------------------------------------------------
 (define defineFunc
-  (lambda (pt s)
-    s))
+  (lambda (name args block s)
+    (decVal name (lambda (argList state) (addArgs args argList state)     ) s)))
 
+; ------------------------------------------------------------------------------
+; addArgs - Adds the arguments to a function onto a new state layer (DYNAMIC SCOPING + CALL BY VALUE)
+; inputs:
+;   argNames - The names of the arguments
+;   argValues - The values of the arguments
+;   state - The state prior to adding the arguments
+;
+; outputs:
+;   The updated state with arguments on a new layer
+; ------------------------------------------------------------------------------
+(define addArgs
+  (lambda (argNames argValues state)
+    (cons (cons argNames (cons argValues '())) state)))
 
 ; ------------------------------------------------------------------------------
 ; atom?
