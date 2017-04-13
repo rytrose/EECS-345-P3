@@ -421,7 +421,10 @@
             (lambda (argList state)
 ;              (display "running ")(display name)(newline)
                    (let ((newState (m_func block
-                           (addArgs args argList (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))) (valState (extractValue newState) (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState))))))) s)))
+                           (addArgs args argList (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
+                                                                                                                                                                                            (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState))))
+                                                                                                                                                                                            (popLayer (extractState newState)))
+                                                                                                                                                                                            ))) s)))
 
 (define reduceState
   (lambda (state removeLayers)
@@ -433,6 +436,7 @@
   (lambda (list)
     (cond
       ((null? list) 0)
+      ((atom? (car list)) (listLength (cdr list)))
       (else (+ 1 (listLength (cdr list)))))))
 
 (define restoreState
