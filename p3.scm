@@ -278,6 +278,7 @@
       ((null? name) (cont_t state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
       ((or (integer? name) (boolean? name)) name)
+      ((or (eqv? name 'true) (eqv? name 'false)) name)
       (else
        (if (eqv? (getVal* name (caar state) (cadar state)) 'NULL) (getVal name (cdr state)) (getVal* name (caar state) (cadar state)))))))
 
