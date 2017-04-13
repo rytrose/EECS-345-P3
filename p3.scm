@@ -117,7 +117,7 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s) s)))
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan 
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
