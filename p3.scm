@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------------------------
 ; test
 ; ------------------------------------------------------------------------------
-(define testPrograms '(("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" 'true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
+(define testPrograms '(("TestBool.txt" true)("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" 'true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
 
 (define testInterpreter
   (lambda (testPrograms passed failed)
