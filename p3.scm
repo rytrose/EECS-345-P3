@@ -53,8 +53,16 @@
   (lambda (returnVals)
     (cond
       ((null? (extractValue returnVals)) (extractState returnVals))
-      (else (extractValue returnVals)))))
+      (else (boolHandle (extractValue returnVals))))))
 
+(define boolHandle
+  (lambda (val)
+    (cond
+      ((number? val) val)
+      (else
+       (if val
+           'true
+           'false) ))))
 (define continueError
   (lambda (s)
     (error "CONTINUATION ERROR: Continue outside of loop!")))
@@ -100,7 +108,7 @@
       ((null? (getFirstOperation pt)) (interpreter (getRemainingStatements pt) s return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'var) (interpreter (getRemainingStatements pt) (decVal (getFirstOperand pt) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
       ((eqv? (getFirstOperation pt) '=) (interpreter (getRemainingStatements pt) (m_assign (getOperands pt) s cont_t) return cont_c cont_b cont_t))  ; if "="
-      ((eqv? (getFirstOperation pt) 'return) (let ((finalState (m_eval (getFirstOperand pt) s cont_t))) ((if (boolean? (extractValue finalState)) (if (extractValue finalState) (return (valState 'true s)) (return (valState 'false s))) (return finalState))))) ; if "return"
+      ((eqv? (getFirstOperation pt) 'return) (let ((finalState (m_eval (getFirstOperand pt) s cont_t))) (return finalState))) ; if "return"
       ((eqv? (getFirstOperation pt) 'if) (interpreter (getRemainingStatements pt) (m_if (getFirstOperand pt) (getSecondOperand pt) (if (null? (getThirdPlusOperands pt)) '() (getThirdOperand pt)) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))  ; if "if"
       ((eqv? (getFirstOperation pt) 'while) (interpreter (getRemainingStatements pt) (call/cc (lambda (breakFunc) (m_while (getFirstOperand pt) (getSecondOperand pt) s return breakFunc cont_t))) return cont_c cont_b cont_t))  ; if "while"
       ((eqv? (getFirstOperation pt) 'begin) (interpreter (getRemainingStatements pt) (m_block (getOperands pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t)) ; if "begin"
