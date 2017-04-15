@@ -47,7 +47,7 @@
                 (call/cc
                  (lambda (return)
                    (interpreter (parser fd) '((() ())) return continueError breakError throwError))))))
-          ((getVal 'main state) '() state)))))))
+          ((getVal 'main state) '() state throwError)))))))
 
 (define selectReturn
   (lambda (returnVals)
@@ -115,9 +115,9 @@
       ((eqv? (getFirstOperation pt) 'continue) (cont_c s))
       ((eqv? (getFirstOperation pt) 'break) (cont_b s))
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
-      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan 
+      ((eqv? (getFirstOperation pt) 'throw) (cont_t s (extractValue (m_eval (getFirstOperand pt) s cont_t))))
+      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (listLength s) (listLength (popLayer tryState)))) e)))) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -159,7 +159,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s))
+      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (listLength s) (listLength (popLayer tryState)))) e))   ))
       (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
@@ -177,7 +177,7 @@
 
 (define m_assign
   (lambda (st s cont_t)
-    (setVal (getVar st) (car (m_eval (getStFirstOperand st) s cont_t)) (cdr (m_eval (getStFirstOperand st) s cont_t))) ))
+    (setVal (getVar st) (car (m_eval (getStFirstOperand st) s cont_t)) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t) ))
 
 ; ------------------------------------------------------------------------------
 ; m_if - handles a conditional block
@@ -243,10 +243,10 @@
 ; ------------------------------------------------------------------------------
 
 (define setVal
-  (lambda (name value state)
+  (lambda (name value state cont_t)
     (cond
       ((null? state) (cont_t state (buildError "SETVAL ERROR: Variable not found: " name)))
-      ((eqv? #f (call/cc (lambda (cont) (cont (setVal* name value (car state) cont))))) (cons (car state) (setVal name value (cdr state))))
+      ((eqv? #f (call/cc (lambda (cont) (cont (setVal* name value (car state) cont))))) (cons (car state) (setVal name value (cdr state) cont_t)))
       (else (cons (setVal* name value (car state) (lambda (v) (error v))) (cdr state))))))
 
 (define setVal*
@@ -425,9 +425,9 @@
 ;   The final state with this function added on
 ; ------------------------------------------------------------------------------
 (define defineFunc
-  (lambda (name args block s cont_t)
+  (lambda (name args block s)
     (decVal name
-            (lambda (argList state)
+            (lambda (argList state cont_t)
 ;              (display "running ")(display name)(newline)
                    (let ((newState (m_func block
                            (addArgs args argList (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
