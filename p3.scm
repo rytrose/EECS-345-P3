@@ -117,7 +117,7 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (extractValue (m_eval (getFirstOperand pt) s cont_t))))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (listLength s) (listLength (popLayer tryState)))) e)))) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (stateLength s) (stateLength (popLayer tryState)))) e)))) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -159,7 +159,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (listLength s) (listLength (popLayer tryState)))) e))   ))
+      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (stateLength s) (stateLength (popLayer tryState)))) e))   ))
       (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
@@ -430,8 +430,8 @@
             (lambda (argList state cont_t)
 ;              (display "running ")(display name)(newline)
                    (let ((newState (m_func block
-                           (addArgs args argList (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
-                                                                                                                                                                                            (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState))))
+                           (addArgs args argList (reduceState state (if (eqv? (stateLength state) 1) 0 (- (stateLength state) (stateLength s)))) cont_t) cont_t))) (valState (extractValue newState) (if (> (- (stateLength state) (stateLength (extractState newState))) -1)
+                                                                                                                                                                                            (restoreState state (extractState newState) (- (stateLength state) (stateLength (extractState newState))))
                                                                                                                                                                                             (popLayer (extractState newState)))
                                                                                                                                                                                             ))) s)))
 
@@ -441,11 +441,17 @@
       ((zero? removeLayers) state)
       (else (reduceState (cdr state) (- removeLayers 1))))))
 
+(define stateLength
+  (lambda (list)
+    (cond
+      ((null? list) 0)
+      ((atom? (car list)) (stateLength (cdr list)))
+      (else (+ 1 (stateLength (cdr list)))))))
+
 (define listLength
   (lambda (list)
     (cond
       ((null? list) 0)
-      ((atom? (car list)) (listLength (cdr list)))
       (else (+ 1 (listLength (cdr list)))))))
 
 (define restoreState
@@ -465,8 +471,9 @@
 ;   The updated state with arguments on a new layer
 ; ------------------------------------------------------------------------------
 (define addArgs
-  (lambda (argNames argValues state)
-    (cons (cons argNames (cons argValues '())) state)))
+  (lambda (argNames argValues state cont_t)
+    (if (not (eqv? (listLength argNames) (listLength argValues))) (cont_t state "ARGUMENT COUNT MISMATCH: Given incorrect number of arguments.")
+        (cons (cons argNames (cons argValues '())) state))))
 
 ; ------------------------------------------------------------------------------
 ; resolveArgs - Resolves the argument list to a list of values
