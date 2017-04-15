@@ -245,25 +245,16 @@
 (define setVal
   (lambda (name value state cont_t)
     (cond
-      ((null? state) (cont_t state (buildError "SETVAL ERROR: Variable not found: " name)))
-      ((eqv? #f (call/cc (lambda (cont) (cont (setVal* name value (car state) cont))))) (cons (car state) (setVal name value (cdr state) cont_t)))
-      (else (cons (setVal* name value (car state) (lambda (v) (error v))) (cdr state))))))
+      ((null? state) (cont_t '((()())) (buildError "VARIABLE ERROR: Attempted assignment on undelcared variable: " name)))
+      (else (let ((result (call/cc (lambda (return) (setValLayer name value (caar state) (cadar state) cont_t return))))) (if (null? result) (cons (car state) (setVal name value (popLayer state) cont_t)) (cons (cons (caar state) (cons result '())) (popLayer state))    ))))))
 
-(define setVal*
-  (lambda (name value state exit)
+(define setValLayer
+  (lambda (name value vars vals cont_t return)
     (cond
-      ; if the names or values of states are null, error
-      ((and (null? (car state)) (null? (cadr state))) (exit #f))
-      ; if it finds the var, set var 
-      ((eqv? name (caar state)) (cons (car state) (cons (cons value (cdadr state)) '())))    
-      ; else recurse on the next state value 
-      (else (cons (cons (caar state) (car (setValRec name value state exit))) (cons (cons (caadr state) (cadr (setValRec name value state exit))) '()))) )))
-
-; helper to shorten recursive line
-(define setValRec
-  (lambda (name value state exit)
-    (setVal* name value (cons (cdar state) (cons (cdadr state) '())) exit) ))
-
+      ((null? vars) (return '()))
+      ((eqv? (car vars) name) (cons value (cdr vals)))
+      (else (cons (car vals) (setValLayer name value (cdr vars) (cdr vals) cont_t return))))))
+ 
 ; ------------------------------------------------------------------------------
 ; getVal - wrapper method for getVal* to deconstruct state variable as necessary
 ; inputs:
