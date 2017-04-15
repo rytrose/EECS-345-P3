@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------------------------
 ; test
 ; ------------------------------------------------------------------------------
-(define testPrograms '(("TestBool.txt" true)("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" 'true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
+(define testPrograms '(("TestBool.txt" true)("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
 
 (define testInterpreter
   (lambda (testPrograms passed failed)
@@ -160,7 +160,7 @@
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s (lambda (tryState e) (cont_t (restoreState s (popLayer tryState) (- (stateLength s) (stateLength (popLayer tryState)))) e))   ))
-      (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
+      (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
 ; m_assign - handles an assigment statement
@@ -269,7 +269,8 @@
       ((null? name) (cont_t state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
       ((or (integer? name) (boolean? name)) name)
-      ((or (eqv? name 'true) (eqv? name 'false)) name)
+      ((eqv? name 'true) #t)
+      ((eqv? name 'false) #f)
       (else
        (if (eqv? (getVal* name (caar state) (cadar state)) 'NULL) (getVal name (cdr state)) (getVal* name (caar state) (cadar state)))))))
 
